@@ -203,6 +203,9 @@ get_status_led() {
 	wr8305rt)
 		status_led="wr8305rt:sys"
 		;;
+	UltraIot-PR1)
+		status_led="mediatek:green:system"
+		;;
 	whr-300hp2 | \
 	whr-600d | \
 	whr-1166d | \

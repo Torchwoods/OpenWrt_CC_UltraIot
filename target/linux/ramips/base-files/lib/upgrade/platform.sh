@@ -119,6 +119,7 @@ platform_check_image() {
 	wr512-3gn |\
 	wr6202 |\
 	wr8305rt |\
+	UltraIot-PR1 |\
 	wrtnode |\
 	wt1520 |\
 	wt3020 |\

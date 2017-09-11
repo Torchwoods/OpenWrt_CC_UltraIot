@@ -1011,20 +1011,21 @@ endef
 # MT7628 Profiles
 #
 
-Image/Build/Profile/MT7628=$(call BuildFirmware/Default4M/$(1),$(1),mt7628,MT7628)
+Image/Build/Profile/UltraIot-PR1=$(call BuildFirmware/Default8M/$(1),$(1),UltraIot-PR1,UltraIot-PR1)
+Image/Build/Profile/MT7628=$(call BuildFirmware/Default8M/$(1),$(1),mt7628,MT7628)
 
 ifeq ($(SUBTARGET),mt7628)
 define Image/Build/Profile/Default
+	$(call Image/Build/Profile/UltraIot-PR1,$(1))
 	$(call Image/Build/Profile/MT7628,$(1))
 endef
 endif
-
 
 #
 # MT7688 Profiles
 #
 
-Image/Build/Profile/MT7688=$(call BuildFirmware/Default4M/$(1),$(1),mt7628,MT7628)
+Image/Build/Profile/MT7688=$(call BuildFirmware/Default8M/$(1),$(1),mt7628,MT7628)
 Image/Build/Profile/LinkIt7688=$(call BuildFirmware/Default32M/$(1),$(1),LinkIt7688,LINKIT7688)
 
 ifeq ($(SUBTARGET),mt7628)
