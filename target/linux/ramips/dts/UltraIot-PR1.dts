@@ -5,6 +5,10 @@
 / {
 	compatible = "UltraIot-PR1", "mediatek,mt7628an-soc";
 	model = "UltraIot-PR1";
+	
+	chosen {
+                bootargs = "console=ttyS0,115200";
+        };
 
 	memory@0 {
 		device_type = "memory";
@@ -21,6 +25,12 @@
 	};
 
 	palmbus@10000000 {
+		
+		uart1@d00 {
+			status = "okay"
+		};
+	
+
 		spi@b00 {
 			status = "okay";
 
