@@ -9,3 +9,11 @@ config timeserver ntp
 	list server	3.openwrt.pool.ntp.org
 	option enabled 1
 	option enable_server 0
+
+config button
+	option button 'BTN_1'
+	option action 'released'
+	option handler '/usr/bin/wifionoff'
+	option min 0
+	option max 5
+

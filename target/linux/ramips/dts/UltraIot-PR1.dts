@@ -14,8 +14,7 @@
 	pinctrl {
 		state_default: pinctrl0 {
 			gpio {
-				//ralink,group = "i2c", "jtag";
-				ralink,group = "p0_led_an","p1_led_an","p2_led_an","p3_led_an","p4_led_an","refclk","gpio" ,"jtag";
+				ralink,group = "refclk","p0_led_an","p1_led_an","p3_led_an","p4_led_an","wled_an","wdt","p2_led_an","gpio","i2c" ;
 				ralink,function = "gpio";
 			};
 		};
@@ -64,7 +63,7 @@
 	gpio-leds {
                 compatible = "gpio-leds";
                 
-				system {
+		system {
                         label = "mediatek:green:system";
                         gpios = <&gpio1 5 1>;
                         default-state = "off";
@@ -103,22 +102,22 @@
                 #size-cells = <0>;
                 poll-interval = <20>;
 
-                button_1 {
-                        label = "button_1";
+                btn1 {
+                        label = "btn1";
                         gpios = <&gpio1 6 0>;
                         linux,code = <0x101>;
                 };
 
-                button_2 {
-                        label = "button_2";
+                btn2 {
+                        label = "btn2";
                         gpios = <&gpio1 9 0>;
                         linux,code = <0x102>;
                 };
 		
-                button_3 {
-                        label = "button_3";
+                reset {
+                        label = "reset";
                         gpios = <&gpio1 12 0>;
-                        linux,code = <0x103>;
+                        linux,code = <0x198>;
                 };
 
         };	

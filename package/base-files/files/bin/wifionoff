@@ -1,0 +1,5 @@
+#!/bin/sh
+SW=$(uci -q get wireless.@wifi-device[0].disabled)
+[ "$SW" -eq "1" ] && uci set wireless.@wifi-device[0].disabled=0
+[ "$SW" -eq "1" ] || uci set wireless.@wifi-device[0].disabled=1
+wifi

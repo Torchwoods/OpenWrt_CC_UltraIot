@@ -249,6 +249,9 @@ case $board in
 		;;
 	UltraIot-PR1)
 		ucidef_set_led_default "power" "power" "mediatek:green:system" "1"
+		ucidef_set_led_netdev "WAN" "WAN" "mediatek:green:wan" "eth0.2"
+		ucidef_set_led_netdev "LAN1" "LAN1" "mediatek:green:lan_1" "eth0.1"
+		ucidef_set_led_netdev "LAN2" "LAN2" "mediatek:green:lan_2" "eth0.1"
 		set_wifi_led "mediatek:green:wifi"
 		;;
 	wt1520)
