@@ -5,14 +5,20 @@
 # See /LICENSE for more information.
 #
 
-define Profile/UltraIot-PR1
-	NAME:=UltraIot-PR1
-	PACKAGES:=\
-		kmod-usb-core kmod-usb2 kmod-usb-ohci \
-		kmod-ledtrig-usbdev
+define Profile/MT7628
+	NAME:=MT7628 Default
+	PACKAGES:= -swconfig -rt2x00 \
+		ated reg gpio btnd switch ethstt uci2dat mii_mgr watchdog 8021xd eth_mac \
+		wireless-tools xl2tpd block-mount fstools kmod-scsi-generic \
+		kmod-usb-core kmod-usb-ohci kmod-usb2 kmod-usb-storage \
+		kmod-fs-vfat kmod-fs-ntfs kmod-nls-base kmod-nls-utf8 kmod-nls-cp936 \
+        kmod-nls-cp437 kmod-nls-cp850 kmod-nls-iso8859-1 kmod-nls-iso8859-15 kmod-nls-cp950
 endef
 
-define Profile/Default/Description
-	UltraIot-PR1
+define Profile/MT7628/Description
+	Basic MT7628 SoC support
 endef
-$(eval $(call Profile,UltraIot-PR1))
+$(eval $(call Profile,MT7628))
+
+
+

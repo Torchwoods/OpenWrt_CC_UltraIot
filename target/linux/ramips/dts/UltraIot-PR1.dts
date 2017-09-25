@@ -18,19 +18,55 @@
 	pinctrl {
 		state_default: pinctrl0 {
 			gpio {
-				ralink,group = "refclk","p0_led_an","p1_led_an","p3_led_an","p4_led_an","wled_an","wdt","p2_led_an","gpio","i2c" ;
+				ralink,group = "pwm0","pwm1","refclk","p0_led_an","p1_led_an","p3_led_an","p4_led_an","wled_an","wdt","p2_led_an","gpio" ;
 				ralink,function = "gpio";
 			};
+
+
+			spis {
+				ralink,group = "spis";
+				ralink,function = "pwm_uart2";
+			};
+			
+			i2s {
+                                ralink,group = "i2s";
+                                ralink,function = "i2s";
+                        };
+
 		};
+
+		uart2_pins: uart2 {
+			uart2 {
+				ralink,group = "uart2";
+				ralink,function = "uart2";
+			};
+		};
+		
 	};
 
 	palmbus@10000000 {
-		
-		uart1@d00 {
-			status = "okay"
-		};
-	
+	        i2c@900 {
+                        status = "okay";
+                };
 
+ 
+	       i2s@a00 {
+			status = "okey";
+
+		};
+
+               uart1@d00 {
+                        status = "okay";
+                };
+
+                uart2@e00 {
+                        status = "okay";
+                };
+
+		pwm@5000 {
+                        status = "okay";
+                };
+		
 		spi@b00 {
 			status = "okay";
 
@@ -67,7 +103,18 @@
 				};
 			};
 		};
+
 	};
+
+
+	sdhci@10130000 {
+                status = "okay";
+                mediatek,cd-low;
+        };
+
+        ethernet@10100000 {
+                mtd-mac-address = <&factory 0x28>;
+        };
 
 
 	gpio-leds {

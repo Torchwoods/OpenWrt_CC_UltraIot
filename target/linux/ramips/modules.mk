@@ -82,7 +82,10 @@ define KernelPackage/sound-mtk
 	CONFIG_SND_MT76XX_SOC \
 	CONFIG_SND_MT76XX_I2S \
 	CONFIG_SND_MT76XX_PCM \
-	CONFIG_SND_SOC_WM8960
+	CONFIG_SND_SOC_WM8960 \
+	CONFIG_SND_MT76XX_SOC_MT7628=y \
+	CONFIG_SND_MT76XX_SOC_MT7620=n
+
   FILES:= \
 	$(LINUX_DIR)/sound/soc/mtk/ralink_gdma.ko \
 	$(LINUX_DIR)/sound/soc/mtk/snd-soc-mt76xx-i2s-ctl.ko \
