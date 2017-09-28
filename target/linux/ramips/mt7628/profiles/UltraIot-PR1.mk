@@ -6,7 +6,7 @@
 #
 
 define Profile/MT7628
-	NAME:=MT7628 Default
+	NAME:=UtraIot Default
 	PACKAGES:= -swconfig -rt2x00 \
 		ated reg gpio btnd switch ethstt uci2dat mii_mgr watchdog 8021xd eth_mac \
 		wireless-tools xl2tpd block-mount fstools kmod-scsi-generic \
@@ -16,7 +16,7 @@ define Profile/MT7628
 endef
 
 define Profile/MT7628/Description
-	Basic MT7628 SoC support
+	Basic UltraIot SoC support
 endef
 $(eval $(call Profile,MT7628))
 
