@@ -1,0 +1,851 @@
+Index: b/sound/soc/mtk/Makefile
+===================================================================
+--- a/sound/soc/mtk/Makefile	2017-10-04 12:33:34.977843031 +0800
++++ b/sound/soc/mtk/Makefile	2017-10-04 12:45:47.845377150 +0800
+@@ -15,6 +15,7 @@ KBUILD_CFLAGS += -DRALINK_GDMA_BASE=0xB0
+ KBUILD_CFLAGS += -DCONFIG_GDMA_EVERYBODY
+ KBUILD_CFLAGS += -DCONFIG_SND_MT76XX_SOC
+ KBUILD_CFLAGS += -DCONFIG_I2S_WM8960
++KBUILD_CFLAGS += -DCONFIG_I2S_IN_MCLK
+ #KBUILD_CFLAGS += -DCONFIG_I2S_MCLK_12P288MHZ
+ KBUILD_CFLAGS += -DCONFIG_I2S_MCLK_12MHZ
+ KBUILD_CFLAGS += -DCONFIG_GDMA_EVERYBODY
+Index: b/sound/soc/mtk/i2s_ctrl.c
+===================================================================
+--- a/sound/soc/mtk/i2s_ctrl.c	2017-10-04 12:33:34.977843031 +0800
++++ b/sound/soc/mtk/i2s_ctrl.c	2017-10-04 14:06:05.848737025 +0800
+@@ -97,7 +97,7 @@ static int i2s_ioctl(struct inode *inode
+ static int i2s_mmap(struct file *file, struct vm_area_struct *vma);
+ static int i2s_open(struct inode *inode, struct file *file);
+ static int i2s_release(struct inode *inode, struct file *file);
+-int i2s_mmap_alloc(unsigned long size);
++int i2s_mmap_alloc(unsigned long size,int dir);
+ int i2s_mmap_remap(struct vm_area_struct *vma, unsigned long size);
+ 
+ /* global varable definitions */
+@@ -377,12 +377,23 @@ static int i2s_release(struct inode *ino
+ 	ptri2s_config = filp->private_data;
+ 	if(ptri2s_config==NULL)
+ 		goto EXIT;
+-#ifdef CONFIG_I2S_MMAP	
+-	i2s_mem_unmap(ptri2s_config);
+-#else
+-	i2s_txbuf_free(ptri2s_config);
+-	i2s_rxbuf_free(ptri2s_config);
+-#endif	
++//#ifdef CONFIG_I2S_MMAP	
++//	i2s_mem_unmap(ptri2s_config);
++//#else
++//	i2s_txbuf_free(ptri2s_config);
++//	i2s_rxbuf_free(ptri2s_config);
++//#endif	
++
++	if(pi2s_config->is_tx_mmap)
++		i2s_mem_unmap(ptri2s_config,STREAM_PLAYBACK);
++	else
++		i2s_txbuf_free(ptri2s_config);
++	
++	if(pi2s_config->is_rx_mmap)
++		i2s_mem_unmap(ptri2s_config,STREAM_CAPTURE);
++	else
++		i2s_rxbuf_free(ptri2s_config);
++
+ 	/* free buffer */
+ 	i2s_txPagebuf_free(ptri2s_config);
+ 	i2s_rxPagebuf_free(ptri2s_config);	
+@@ -391,7 +402,7 @@ EXIT:
+ 	return 0;
+ }
+ 
+-int i2s_mmap_alloc(unsigned long size)
++int i2s_mmap_alloc(unsigned long size,int dir)
+ {
+ 	int i;
+ 	u32 page_size;
+@@ -399,6 +410,13 @@ int i2s_mmap_alloc(unsigned long size)
+ 
+ 	page_size = I2S_PAGE_SIZE;
+ 
++	if(STREAM_PLAYBACK == dir){
++		pi2s_config->mmap_index = 0;
++	}
++	else{
++		pi2s_config->mmap_index = MAX_I2S_PAGE;
++	}
++
+ 	if ((pi2s_config->mmap_index == 0) || (pi2s_config->mmap_index == MAX_I2S_PAGE))
+ 	{
+ 		MSG("mmap_index=%d\n", pi2s_config->mmap_index);
+@@ -483,7 +501,7 @@ static int i2s_mmap(struct file *filp, s
+ 	_printk("%s: vm_start=%08X,vm_end=%08X\n", __func__, (u32)vma->vm_start, (u32)vma->vm_end);
+ 		
+ 	/* Do memory allocate and dma sync */
+-	i2s_mmap_alloc(size);
++	i2s_mmap_alloc(size,STREAM_PLAAYBACK);
+ 
+ 	i2s_mmap_remap(vma, size);
+ 
+@@ -491,12 +509,28 @@ static int i2s_mmap(struct file *filp, s
+ 	return 0;
+ }
+ 
+-int i2s_mem_unmap(i2s_config_type* ptri2s_config)
++int i2s_mem_unmap(i2s_config_type* ptri2s_config,int dir)
+ {
+ 	u32 page_size;
+ 
+ 	page_size = I2S_PAGE_SIZE;
+-
++	if(STREAM_PLAYBACK == dir){
++		if(ptri2s_config->pMMAPBufPtr[0]){
++			printk("ummap MMAP[0]=0x%08X\n", (u32)ptri2s_config->pMMAPBufPtr[0]);
++			dma_unmap_single(NULL, i2s_mmap_addr[0], MAX_I2S_PAGE*page_size, DMA_BIDIRECTIONAL);
++			kfree(ptri2s_config->pMMAPBufPtr[0]);
++			ptri2s_config->pMMAPBufPtr[0] = NULL;
++		}
++	}
++	else{
++		if(ptri2s_config->pMMAPBufPtr[MAX_I2S_PAGE]){
++			printk("ummap MMAP[%d]=0x%08X\n", MAX_I2S_PAGE, (u32)ptri2s_config->pMMAPBufPtr[MAX_I2S_PAGE]);
++			dma_unmap_single(NULL, i2s_mmap_addr[MAX_I2S_PAGE], MAX_I2S_PAGE*page_size, DMA_BIDIRECTIONAL);
++			kfree(ptri2s_config->pMMAPBufPtr[MAX_I2S_PAGE]);
++			ptri2s_config->pMMAPBufPtr[MAX_I2S_PAGE] = NULL;
++		}
++	}
++#if 0
+ 	if(ptri2s_config->pMMAPBufPtr[0])
+ 	{	
+ 		_printk("ummap MMAP[0]=0x%08X\n", (u32)ptri2s_config->pMMAPBufPtr[0]);
+@@ -512,7 +546,7 @@ int i2s_mem_unmap(i2s_config_type* ptri2
+ 	}
+ 
+ 	ptri2s_config->mmap_index = 0;
+-	
++#endif	
+ 	return 0;
+ }
+ 
+@@ -542,6 +576,9 @@ int i2s_param_init(i2s_config_type* ptri
+ #endif
+ 	ptri2s_config->micboost = 0;
+ 	ptri2s_config->micin = 0;
++	
++	ptri2s_config->is_rx_mmap = 0;
++	ptri2s_config->is_tx_mmap = 0;
+ 
+ 	return 0;
+ }
+@@ -552,12 +589,17 @@ int i2s_txbuf_alloc(i2s_config_type* ptr
+ 
+ 	for( i = 0 ; i < MAX_I2S_PAGE ; i ++ )
+         {
+-#if defined(CONFIG_I2S_MMAP)
++//#if defined(CONFIG_I2S_MMAP)
++//		ptri2s_config->pMMAPTxBufPtr[i] = ptri2s_config->pMMAPBufPtr[i];
++//#else
++        if(ptri2s_config->is_tx_mmap)
+ 		ptri2s_config->pMMAPTxBufPtr[i] = ptri2s_config->pMMAPBufPtr[i];
+-#else
+-                if(ptri2s_config->pMMAPTxBufPtr[i]==NULL)
++	else
++	{        
++		if(ptri2s_config->pMMAPTxBufPtr[i]==NULL)
+                 	ptri2s_config->pMMAPTxBufPtr[i] = kmalloc(I2S_PAGE_SIZE, GFP_KERNEL);
+-#endif
++//#endif
++	}
+ 		memset(ptri2s_config->pMMAPTxBufPtr[i], 0, I2S_PAGE_SIZE);
+ 	}
+ 
+@@ -570,12 +612,20 @@ int i2s_rxbuf_alloc(i2s_config_type* ptr
+ 
+ 	for( i = 0 ; i < MAX_I2S_PAGE ; i ++ )
+         {
+-#if defined(CONFIG_I2S_MMAP)
+-        	ptri2s_config->pMMAPRxBufPtr[i] = ptri2s_config->pMMAPBufPtr[i+(ptri2s_config->mmap_index-MAX_I2S_PAGE)];
+-#else
+-                if(ptri2s_config->pMMAPRxBufPtr[i]==NULL)
++//#if defined(CONFIG_I2S_MMAP)
++//        	ptri2s_config->pMMAPRxBufPtr[i] = ptri2s_config->pMMAPBufPtr[i+(ptri2s_config->mmap_index-MAX_I2S_PAGE)];
++//#else
++//                if(ptri2s_config->pMMAPRxBufPtr[i]==NULL)
++//			ptri2s_config->pMMAPRxBufPtr[i] = kmalloc(I2S_PAGE_SIZE, GFP_KERNEL);
++//#endif
++
++		if(ptri2s_config->is_rx_mmap)
++			ptri2s_config->pMMAPRxBufPtr[i] = ptri2s_config->pMMAPBufPtr[i+MAX_I2S_PAGE];
++		else{
++			if(ptri2s_config->pMMAPRxBufPtr[i]==NULL)
+ 			ptri2s_config->pMMAPRxBufPtr[i] = kmalloc(I2S_PAGE_SIZE, GFP_KERNEL);
+-#endif
++		}
++
+ 		memset(ptri2s_config->pMMAPRxBufPtr[i], 0, I2S_PAGE_SIZE);
+         }
+ 
+@@ -644,12 +694,20 @@ int i2s_txbuf_free(i2s_config_type* ptri
+ 	{
+ 		if(ptri2s_config->pMMAPTxBufPtr[i] != NULL)
+ 		{
+-#if defined(CONFIG_I2S_MMAP)
+-                        ptri2s_config->pMMAPTxBufPtr[i] = NULL;
+-#else
+-			kfree(ptri2s_config->pMMAPTxBufPtr[i]);
+-			ptri2s_config->pMMAPTxBufPtr[i] = NULL;
+-#endif
++//#if defined(CONFIG_I2S_MMAP)
++//                        ptri2s_config->pMMAPTxBufPtr[i] = NULL;
++//#else
++//			kfree(ptri2s_config->pMMAPTxBufPtr[i]);
++//			ptri2s_config->pMMAPTxBufPtr[i] = NULL;
++//#endif
++
++
++		if(ptri2s_config->is_tx_mmap)
++				ptri2s_config->pMMAPTxBufPtr[i] = NULL;
++			else{
++				kfree(ptri2s_config->pMMAPTxBufPtr[i]);
++				ptri2s_config->pMMAPTxBufPtr[i] = NULL;
++			}
+ 		}
+ 	}
+ 	return 0;
+@@ -663,12 +721,19 @@ int i2s_rxbuf_free(i2s_config_type* ptri
+ 	{
+ 		if(ptri2s_config->pMMAPRxBufPtr[i] != NULL)
+ 		{
+-#if defined(CONFIG_I2S_MMAP)
+-                        ptri2s_config->pMMAPRxBufPtr[i] = NULL;
+-#else
+-			kfree(ptri2s_config->pMMAPRxBufPtr[i]);
+-			ptri2s_config->pMMAPRxBufPtr[i] = NULL;
+-#endif
++//#if defined(CONFIG_I2S_MMAP)
++//                        ptri2s_config->pMMAPRxBufPtr[i] = NULL;
++//#else
++//			kfree(ptri2s_config->pMMAPRxBufPtr[i]);
++//			ptri2s_config->pMMAPRxBufPtr[i] = NULL;
++//#endif
++		if(ptri2s_config->is_rx_mmap)
++				ptri2s_config->pMMAPRxBufPtr[i] = NULL;
++			else{
++				kfree(ptri2s_config->pMMAPRxBufPtr[i]);
++				ptri2s_config->pMMAPRxBufPtr[i] = NULL;
++			}
++
+ 		}
+ 	}
+ 	
+@@ -1319,7 +1384,9 @@ int i2s_refclk_gpio_out_config(void)
+ #endif
+ #if defined(CONFIG_RALINK_MT7628)
+ 	data = i2s_inw(RALINK_SYSCTL_BASE+0x60);
+-	data &= ~(0x1<<18);
++	//data &= ~(0x1<<18);
++	data &= ~(0x03<<0);
++	data |= 0x02<<0;
+ 	i2s_outw(RALINK_SYSCTL_BASE+0x60, data);
+ #endif
+ 
+@@ -1364,12 +1431,13 @@ int i2s_refclk_gpio_in_config(void)
+ #if defined (CONFIG_RALINK_MT7628)
+ 	/* To use external OSC, set REFCLK_GPIO ping as GPIO mode and set it as input direction */
+ 	data = i2s_inw(RALINK_SYSCTL_BASE+0x60);
+-	data |= (0x1<<18);
++	//data |= (0x1<<18);
++	data &= ~(0x03<<0);
+ 	i2s_outw(RALINK_SYSCTL_BASE+0x60, data);
+ 
+-	data = i2s_inw(RALINK_PIO_BASE+0x04);
+-	data &= ~(0x1<<5); /* GPIO share ping 37*/
+-	i2s_outw(RALINK_PIO_BASE+0x04, data);
++	data = i2s_inw(RALINK_PIO_BASE);
++	data &= ~(0x1<<11); /* GPIO share ping 37*/
++	i2s_outw(RALINK_PIO_BASE, data);
+ #endif
+ 
+ 	return 0;
+@@ -1985,6 +2053,7 @@ int i2s_tx_enable(i2s_config_type* ptri2
+ 	data |= REGBIT(0x1, I2S_EN);
+ 	i2s_outw(I2S_I2SCFG, data);
+ 	
++	pi2s_config->bTxDMAEnable = 1;
+ 	MSG("i2s_tx_enable done\n");
+ 	return I2S_OK;
+ }
+@@ -2013,7 +2082,8 @@ int i2s_rx_enable(i2s_config_type* ptri2
+ 	data = i2s_inw(I2S_I2SCFG);
+ 	data |= REGBIT(0x1, I2S_EN);
+ 	i2s_outw(I2S_I2SCFG, data);
+-	
++
++	ptri2s_config->bRxDMAEnable = 1;
+ 	MSG("i2s_rx_enable done\n");
+ 	return I2S_OK;
+ }
+@@ -2076,48 +2146,56 @@ int i2s_dma_tx_transf_data(i2s_config_ty
+ {
+ 	int tx_r_idx;
+  
+-	if ((pi2s_config->bALSAEnable==1) && (pi2s_config->bALSAMMAPEnable==1))
++	if ((pi2s_config->bALSAEnable==1) && (pi2s_config->bALSAMMAPEnable==1)&&(pi2s_config->mmap_index <= MAX_I2S_PAGE))
+ 		tx_r_idx = (pi2s_config->tx_r_idx + ALSA_MMAP_IDX_SHIFT)%MAX_I2S_PAGE;
+ 	else
+ 		tx_r_idx = pi2s_config->tx_r_idx;
+ 
+ 	if(dma_ch==GDMA_I2S_TX0)
+         {
+-#if defined(CONFIG_I2S_MMAP)
++//#if defined(CONFIG_I2S_MMAP)
++		if(pi2s_config->is_tx_mmap){
+ 		dma_sync_single_for_device(NULL,  i2s_mmap_addr[tx_r_idx], I2S_PAGE_SIZE, DMA_TO_DEVICE);
+ #if defined(ARM_ARCH)
+ 		GdmaI2sTx(i2s_mmap_addr[tx_r_idx], I2S_TX_FIFO_WREG_PHY, 0, I2S_PAGE_SIZE, i2s_dma_tx_handler, i2s_dma_tx_unmask_handler);
+ #else
+                 GdmaI2sTx((u32)(pi2s_config->pMMAPTxBufPtr[tx_r_idx]), I2S_TX_FIFO_WREG, 0, I2S_PAGE_SIZE, i2s_dma_tx_handler, i2s_dma_tx_unmask_handler);
+ #endif
+-#else
++//#else
++	}
++	else
++	{
+                 memcpy(pi2s_config->pPage0TxBuf8ptr,  pi2s_config->pMMAPTxBufPtr[tx_r_idx], I2S_PAGE_SIZE);
+ #if defined(ARM_ARCH)
+ 		GdmaI2sTx(i2s_txdma_addr0, I2S_TX_FIFO_WREG_PHY, 0, I2S_PAGE_SIZE, i2s_dma_tx_handler, i2s_dma_tx_unmask_handler);
+ #else
+                 GdmaI2sTx((u32)(pi2s_config->pPage0TxBuf8ptr), I2S_TX_FIFO_WREG, 0, I2S_PAGE_SIZE, i2s_dma_tx_handler, i2s_dma_tx_unmask_handler);
+ #endif
+-#endif
++//#endif
++	}
+                 pi2s_config->dmach = GDMA_I2S_TX0;
+                 pi2s_config->tx_r_idx = (pi2s_config->tx_r_idx+1)%MAX_I2S_PAGE;
+ 	}
+         else
+         {
+-#if defined(CONFIG_I2S_MMAP)
++//#if defined(CONFIG_I2S_MMAP)
++	if(pi2s_config->is_tx_mmap){	
+ 		dma_sync_single_for_device(NULL,  i2s_mmap_addr[tx_r_idx], I2S_PAGE_SIZE, DMA_TO_DEVICE);
+ #if defined(ARM_ARCH)
+ 		GdmaI2sTx(i2s_mmap_addr[tx_r_idx], I2S_TX_FIFO_WREG_PHY, 1, I2S_PAGE_SIZE, i2s_dma_tx_handler, i2s_dma_tx_unmask_handler);
+ #else
+                 GdmaI2sTx((u32)(pi2s_config->pMMAPTxBufPtr[tx_r_idx]), I2S_TX_FIFO_WREG, 1, I2S_PAGE_SIZE, i2s_dma_tx_handler, i2s_dma_tx_unmask_handler);
+ #endif
+-#else
++//#else
++	}else{
+                 memcpy(pi2s_config->pPage1TxBuf8ptr,  pi2s_config->pMMAPTxBufPtr[tx_r_idx], I2S_PAGE_SIZE);
+ #if defined(ARM_ARCH)
+ 		GdmaI2sTx(i2s_txdma_addr1, I2S_TX_FIFO_WREG_PHY, 1, I2S_PAGE_SIZE, i2s_dma_tx_handler, i2s_dma_tx_unmask_handler);
+ #else
+                 GdmaI2sTx((u32)(pi2s_config->pPage1TxBuf8ptr), I2S_TX_FIFO_WREG, 1, I2S_PAGE_SIZE, i2s_dma_tx_handler, i2s_dma_tx_unmask_handler);
+ #endif
+-#endif
++//#endif
++	}
+                 pi2s_config->dmach = GDMA_I2S_TX1;
+                 pi2s_config->tx_r_idx = (pi2s_config->tx_r_idx+1)%MAX_I2S_PAGE;
+ 	}
+@@ -2166,41 +2244,47 @@ int i2s_dma_rx_transf_data(i2s_config_ty
+ 	if(dma_ch==GDMA_I2S_RX0)
+         {
+                 
+-#ifdef CONFIG_I2S_MMAP
++//#ifdef CONFIG_I2S_MMAP
++	 if(ptri2s_config->is_rx_mmap){
+                 dma_sync_single_for_device(NULL,  i2s_mmap_addr[rx_w_idx+(pi2s_config->mmap_index-MAX_I2S_PAGE)], I2S_PAGE_SIZE, DMA_FROM_DEVICE);
+ #if defined(ARM_ARCH)
+ 		GdmaI2sRx(I2S_RX_FIFO_RREG_PHY, (u32)i2s_mmap_addr[rx_w_idx+(pi2s_config->mmap_index-MAX_I2S_PAGE)], 0, I2S_PAGE_SIZE, i2s_dma_rx_handler, i2s_dma_rx_unmask_handler);
+ #else
+                 GdmaI2sRx(I2S_RX_FIFO_RREG, (u32)(pi2s_config->pMMAPRxBufPtr[rx_w_idx]), 0, I2S_PAGE_SIZE, i2s_dma_rx_handler, i2s_dma_rx_unmask_handler);
+ #endif
+-#else
++//#else
++	}else{
+                 memcpy(pi2s_config->pMMAPRxBufPtr[rx_w_idx], pi2s_config->pPage0RxBuf8ptr, I2S_PAGE_SIZE);
+ #if defined(ARM_ARCH)
+ 		GdmaI2sRx(I2S_RX_FIFO_RREG_PHY, i2s_rxdma_addr0, 0, I2S_PAGE_SIZE, i2s_dma_rx_handler, i2s_dma_rx_unmask_handler);
+ #else
+                 GdmaI2sRx(I2S_RX_FIFO_RREG, (u32)(pi2s_config->pPage0RxBuf8ptr), 0, I2S_PAGE_SIZE, i2s_dma_rx_handler, i2s_dma_rx_unmask_handler);
+ #endif
+-#endif
++//#endif
++	}
+                 pi2s_config->dmach = GDMA_I2S_RX0;
+         }
+ 	else
+         {
+                 
+-#ifdef CONFIG_I2S_MMAP
+-                dma_sync_single_for_device(NULL,  i2s_mmap_addr[rx_w_idx+(pi2s_config->mmap_index-MAX_I2S_PAGE)], I2S_PAGE_SIZE, DMA_FROM_DEVICE);
++//#ifdef CONFIG_I2S_MMAP
++	if(ptri2s_config->is_rx_mmap){  
++              dma_sync_single_for_device(NULL,  i2s_mmap_addr[rx_w_idx+(pi2s_config->mmap_index-MAX_I2S_PAGE)], I2S_PAGE_SIZE, DMA_FROM_DEVICE);
+ #if defined(ARM_ARCH)
+ 		GdmaI2sRx(I2S_RX_FIFO_RREG_PHY, (u32)i2s_mmap_addr[rx_w_idx+(pi2s_config->mmap_index-MAX_I2S_PAGE)], 1, I2S_PAGE_SIZE, i2s_dma_rx_handler, i2s_dma_rx_unmask_handler);
+ #else
+                 GdmaI2sRx(I2S_RX_FIFO_RREG, (u32)(pi2s_config->pMMAPRxBufPtr[rx_w_idx]), 1, I2S_PAGE_SIZE, i2s_dma_rx_handler, i2s_dma_rx_unmask_handler);
+ #endif
+-#else
++//#else		
++		}else{
+                 memcpy(pi2s_config->pMMAPRxBufPtr[rx_w_idx], pi2s_config->pPage1RxBuf8ptr, I2S_PAGE_SIZE);
+ #if defined(ARM_ARCH)
+ 		GdmaI2sRx(I2S_RX_FIFO_RREG_PHY, i2s_rxdma_addr1, 1, I2S_PAGE_SIZE, i2s_dma_rx_handler, i2s_dma_rx_unmask_handler);
+ #else
+                 GdmaI2sRx(I2S_RX_FIFO_RREG, (u32)(pi2s_config->pPage1RxBuf8ptr), 1, I2S_PAGE_SIZE, i2s_dma_rx_handler, i2s_dma_rx_unmask_handler);
+ #endif
+-#endif
++//#endif
++	}
+                 pi2s_config->dmach = GDMA_I2S_RX1;
+ 
+         }
+@@ -2273,7 +2357,8 @@ void i2s_dma_tx_handler(u32 dma_ch)
+ 		{
+ 			if(!pi2s_config->bTrigger[STREAM_PLAYBACK]){
+ 				//_printk("trigger stop: rIdx:%d widx:%d\n", pi2s_config->tx_r_idx,pi2s_config->tx_w_idx);
+-                                i2s_dma_tx_transf_zero(pi2s_config, dma_ch);
++                                //i2s_dma_tx_transf_zero(pi2s_config, dma_ch);
++                                i2s_dma_tx_transf_data(pi2s_config, dma_ch);
+                                 if(pi2s_config->bPreTrigger[STREAM_PLAYBACK]){
+                                         /* mtk04880 commented:
+                                          * for corner case, there are cases which ALSA Trigger stop before disabling DMA.
+@@ -3040,12 +3125,12 @@ int i2s_ioctl (struct inode *inode, stru
+ #if defined(CONFIG_I2S_WM8960)||defined(CONFIG_I2S_WM8750)||defined(CONFIG_I2S_WM8751)
+ 		audiohw_set_lineout_vol(1, ptri2s_config->txvol, ptri2s_config->txvol);
+ #endif
+-		GdmaUnMaskChannel(GDMA_I2S_TX0);
++		//GdmaUnMaskChannel(GDMA_I2S_TX0);
+ 
+ 		i2s_tx_enable(ptri2s_config);
+ 	
+ 		/* Kick off dma channel */	
+-		//GdmaUnMaskChannel(GDMA_I2S_TX0);
++		GdmaUnMaskChannel(GDMA_I2S_TX0);
+ 
+ 		MSG("I2S_TXENABLE done\n");
+ 		spin_unlock_irqrestore(&ptri2s_config->lock, flags);
+@@ -3300,15 +3385,18 @@ char* i2s_memPool_Alloc(i2s_config_type*
+         if(!ptri2s_config)
+                 return NULL;
+         if(dir == STREAM_PLAYBACK){
+-#if defined(CONFIG_I2S_MMAP)
+-                i2s_mmap_alloc(I2S_TOTAL_PAGE_SIZE);
+-#endif
+-                i2s_txbuf_alloc(ptri2s_config);
++//#if defined(CONFIG_I2S_MMAP)
++//                i2s_mmap_alloc(I2S_TOTAL_PAGE_SIZE);
++//#endif
++	if(ptri2s_config->is_tx_mmap)
++		i2s_mmap_alloc(I2S_TOTAL_PAGE_SIZE,dir);
++         i2s_txbuf_alloc(ptri2s_config);
+ 		return ptri2s_config->pMMAPTxBufPtr[0];
+         }else{
+-#if defined(CONFIG_I2S_MMAP)
+-                i2s_mmap_alloc(I2S_TOTAL_PAGE_SIZE);
+-#endif
++//#if defined(CONFIG_I2S_MMAP)
++	if(ptri2s_config->is_rx_mmap)  
++              i2s_mmap_alloc(I2S_TOTAL_PAGE_SIZE,dir);
++//#endif
+ 		i2s_rxbuf_alloc(ptri2s_config);	
+ 		return ptri2s_config->pMMAPRxBufPtr[0];
+ 	}
+@@ -3320,14 +3408,16 @@ void i2s_memPool_free(i2s_config_type* p
+         if(!ptri2s_config)
+                 return;
+         if(dir == STREAM_PLAYBACK){
+-#if defined(CONFIG_I2S_MMAP)
+-		i2s_mem_unmap(ptri2s_config);
+-#endif
++//#if defined(CONFIG_I2S_MMAP)
++	if(ptri2s_config->is_tx_mmap)	
++		i2s_mem_unmap(ptri2s_config,dir);
++//#endif
+ 		i2s_txbuf_free(ptri2s_config);
+         }else{
+-#if defined(CONFIG_I2S_MMAP)
+-		i2s_mem_unmap(ptri2s_config);
+-#endif
++//#if defined(CONFIG_I2S_MMAP)
++		if(ptri2s_config->is_tx_mmap)
++			i2s_mem_unmap(ptri2s_config,dir);
++//#endif
+ 		i2s_rxbuf_free(ptri2s_config);
+         }
+ 
+@@ -3370,9 +3460,9 @@ int i2s_startup(void)
+ 
+ 	i2s_param_init(pi2s_config);
+ 	pi2s_config->bALSAEnable = 1;
+-#if defined(CONFIG_I2S_MMAP)
+-	pi2s_config->bALSAMMAPEnable = 1;
+-#endif
++//#if defined(CONFIG_I2S_MMAP)
++//	pi2s_config->bALSAMMAPEnable = 1;
++//#endif
+ 
+ #if defined (CONFIG_RALINK_MT7628) || defined(CONFIG_ARCH_MT7623)
+ 	pi2s_config->little_edn = 1;
+@@ -3422,11 +3512,11 @@ void gdma_unmask_handler(u32 dma_ch)
+ 	return;
+ }
+ 
+-u32 i2s_mmap_phys_addr(i2s_config_type* ptri2s_config)
++u32 i2s_mmap_phys_addr(i2s_config_type* ptri2s_config,int dir)
+ {
+-	if((ptri2s_config->pMMAPBufPtr[0]!=NULL) && (ptri2s_config->mmap_index == MAX_I2S_PAGE))
++	if((ptri2s_config->pMMAPBufPtr[0]!=NULL) && (dir == STREAM_PLAYBACK))
+ 		return (dma_addr_t)i2s_mmap_addr[0];
+-	else if((ptri2s_config->pMMAPBufPtr[MAX_I2S_PAGE]!=NULL) && (ptri2s_config->mmap_index == MAX_I2S_PAGE*2))
++	else if((ptri2s_config->pMMAPBufPtr[MAX_I2S_PAGE]!=NULL) && (dir == STREAM_CAPTURE))
+ 		return (dma_addr_t)i2s_mmap_addr[MAX_I2S_PAGE];
+ 	else
+ 		return -1;
+Index: b/sound/soc/mtk/i2s_ctrl.h
+===================================================================
+--- a/sound/soc/mtk/i2s_ctrl.h	2017-10-04 12:33:34.977843031 +0800
++++ b/sound/soc/mtk/i2s_ctrl.h	2017-10-04 13:36:31.948231261 +0800
+@@ -212,7 +212,8 @@
+ 
+ /* Constant definition */
+ #define NFF_THRES		4
+-#define I2S_PAGE_SIZE		3072//(3*4096)//(1152*2*2*2)
++//#define I2S_PAGE_SIZE		3072//(3*4096)//(1152*2*2*2)
++#define I2S_PAGE_SIZE		6144//(3*4096)//(1152*2*2*2)
+ #define I2S_MIN_PAGE_SIZE	4096
+ #define MAX_I2S_PAGE		8
+ #define I2S_TOTAL_PAGE_SIZE 	(I2S_PAGE_SIZE*MAX_I2S_PAGE)
+@@ -344,7 +345,9 @@ typedef struct i2s_config_t
+ 	int enLable;
+ 	int micboost;
+ 	int micin;
+-	
++	int is_tx_mmap;
++	int is_rx_mmap;	
++
+ 	/* parameters fo ALSA */
+ 	int bALSAEnable;
+ 	int bALSAMMAPEnable;
+@@ -427,8 +430,10 @@ typedef struct i2s_config_t
+ }i2s_config_type;
+ 
+ 
++int i2s_mmap_alloc(unsigned long size,int dir);
++
+ void i2s_gen_test_pattern(void);
+-int i2s_mem_unmap(i2s_config_type* ptri2s_config);
++int i2s_mem_unmap(i2s_config_type* ptri2s_config,int dir);
+ int i2s_param_init(i2s_config_type* ptri2s_config);
+ int i2s_txbuf_alloc(i2s_config_type* ptri2s_config);
+ int i2s_rxbuf_alloc(i2s_config_type* ptri2s_config);
+@@ -510,7 +515,7 @@ int i2s_audio_exchange(i2s_config_type*
+ void gdma_unmask_handler(u32 dma_ch);
+ char* i2s_memPool_Alloc(i2s_config_type* ptri2s_config,int dir);
+ void i2s_memPool_free(i2s_config_type* ptri2s_config,int dir);
+-u32 i2s_mmap_phys_addr(i2s_config_type* ptri2s_config);
++u32 i2s_mmap_phys_addr(i2s_config_type* ptri2s_config,int dir);
+ 
+ #if !defined(CONFIG_I2S_TXRX)
+ #define GdmaI2sRx	//GdmaI2sRx
+Index: b/sound/soc/mtk/mt76xx_i2s.c
+===================================================================
+--- a/sound/soc/mtk/mt76xx_i2s.c	2017-10-04 12:33:34.977843031 +0800
++++ b/sound/soc/mtk/mt76xx_i2s.c	2017-10-04 13:39:25.658417672 +0800
+@@ -82,7 +82,7 @@ const struct snd_soc_component_driver mt
+ 
+ struct snd_soc_dai_driver mt76xx_i2s_dai = {
+ 	.playback = {
+-		.channels_min = 1,
++		.channels_min = 2,
+ 		.channels_max = 2,
+ 		.rates = (SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_11025|\
+ 		SNDRV_PCM_RATE_16000|SNDRV_PCM_RATE_22050|SNDRV_PCM_RATE_32000|\
+@@ -92,7 +92,7 @@ struct snd_soc_dai_driver mt76xx_i2s_dai
+ 				SNDRV_PCM_FMTBIT_S24_LE),
+ 	},
+ 	.capture = {
+-		.channels_min = 1,
++		.channels_min = 2,
+ 		.channels_max = 2,
+ 		.rates = (SNDRV_PCM_RATE_8000|SNDRV_PCM_RATE_11025|\
+ 				SNDRV_PCM_RATE_16000|SNDRV_PCM_RATE_22050|SNDRV_PCM_RATE_32000|\
+@@ -144,9 +144,10 @@ static int mt76xx_i2s_rec_prepare(struct
+ 	i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
+ 	rtd->pss[SNDRV_PCM_STREAM_CAPTURE] = substream;
+ 	if(! rtd->i2sStat[SNDRV_PCM_STREAM_CAPTURE]) {
++		gdma_En_Switch(rtd, STREAM_CAPTURE, GDMA_I2S_EN);
+ 		i2s_reset_rx_param(rtd);
+ 		i2s_rx_config(rtd);
+-		gdma_En_Switch(rtd, STREAM_CAPTURE, GDMA_I2S_EN);
++		//gdma_En_Switch(rtd, STREAM_CAPTURE, GDMA_I2S_EN);
+ 
+ 		if(rtd->bTxDMAEnable==0)
+ 			i2s_clock_enable(rtd);
+@@ -170,7 +171,7 @@ static int  mt76xx_i2s_startup(struct sn
+ {
+ 
+ 	//printk("******* %s *******\n", __func__);
+-    	if((!pi2s_config->i2sStat[SNDRV_PCM_STREAM_PLAYBACK]) && (!pi2s_config->i2sStat[SNDRV_PCM_STREAM_CAPTURE])){
++    	if((!pi2s_config->i2sStat[SNDRV_PCM_STREAM_PLAYBACK]) && (!pi2s_config->i2sStat[SNDRV_PCM_STREAM_CAPTURE])&&(pi2s_config->mmap_index == 0)){
+ 		i2s_startup();
+     		if(!pi2s_config)
+     			return -1;
+Index: b/sound/soc/mtk/mt76xx_pcm.c
+===================================================================
+--- a/sound/soc/mtk/mt76xx_pcm.c	2017-10-04 12:33:34.977843031 +0800
++++ b/sound/soc/mtk/mt76xx_pcm.c	2017-10-04 13:58:03.407859929 +0800
+@@ -32,6 +32,7 @@
+ #include <sound/soc.h>
+ #include <sound/soc-dapm.h>
+ #include <sound/initval.h>
++#include <linux/delay.h>
+ #include "ralink_gdma.h"
+ #include "mt76xx_i2s.h"
+ 
+@@ -82,7 +83,8 @@ static const struct snd_pcm_hardware mt7
+ 				SNDRV_PCM_INFO_PAUSE |
+ 				SNDRV_PCM_INFO_RESUME),
+ #endif
+-	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
++	.formats		= SNDRV_PCM_FMTBIT_S16_LE|SNDRV_PCM_FMTBIT_S24_LE,
++	.rates			= SNDRV_PCM_RATE_8000_48000,
+ 	.period_bytes_min	= GDMA_PAGE_SIZE,
+ 	.period_bytes_max	= GDMA_PAGE_SIZE,
+ 	.periods_min		= 1,
+@@ -164,8 +166,12 @@ static int mt76xx_pcm_trigger(struct snd
+ 	case SNDRV_PCM_TRIGGER_START:
+ 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+ 			rtd->bTrigger[SNDRV_PCM_STREAM_PLAYBACK] = 1;
++			rtd->dmaStat[SNDRV_PCM_STREAM_PLAYBACK] = 1;
++			gdma_unmask_handler(GDMA_I2S_TX0);
+ 		} else {
+ 			rtd->bTrigger[SNDRV_PCM_STREAM_CAPTURE] = 1;
++			rtd->dmaStat[SNDRV_PCM_STREAM_CAPTURE] = 1;
++			gdma_unmask_handler(GDMA_I2S_RX0);
+ 		}
+ 		break;
+ 	case SNDRV_PCM_TRIGGER_STOP:
+@@ -230,8 +236,53 @@ static int mt76xx_pcm_copy(struct snd_pc
+ 
+ static int mt76xx_pcm_mmap(struct snd_pcm_substream *substream, struct vm_area_struct *vma)
+ {
+-        int ret;
+-        unsigned long size;
++	int ret = 0;
++	int i =0;
++	unsigned long size;
++
++	struct snd_dma_buffer *buf = &substream->dma_buffer;
++	i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
++	int  dir = substream->stream;
++
++	mt76xx_pcm_free_dma_buffer(substream,substream->stream);
++	i2s_mmap_alloc(I2S_TOTAL_PAGE_SIZE,dir);
++	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
++		rtd->is_tx_mmap = 1;
++	else
++		rtd->is_rx_mmap = 1;
++
++	if(!buf->area){
++	//		MSG("<><><><><><>mt76xx_pcm_mmap<><><><>\n");
++		buf->dev.dev = NULL;
++			buf->private_data = NULL;
++		if(dir == SNDRV_PCM_STREAM_PLAYBACK){
++				for( i = 0 ; i < MAX_I2S_PAGE ; i ++ ){
++					rtd->pMMAPTxBufPtr[i] = rtd->pMMAPBufPtr[i];
++					memset(rtd->pMMAPTxBufPtr[i], 0, I2S_PAGE_SIZE);
++				}
++				buf->area = rtd->pMMAPTxBufPtr[0];
++			}
++			else{
++				for( i = 0 ; i < MAX_I2S_PAGE ; i ++ ){
++					rtd->pMMAPRxBufPtr[i] = rtd->pMMAPBufPtr[i + MAX_I2S_PAGE];
++					memset(rtd->pMMAPRxBufPtr[i], 0, I2S_PAGE_SIZE);
++				}
++				buf->area = rtd->pMMAPRxBufPtr[0];		
++			}
++			if (!buf->area)
++				return -ENOMEM;
++			buf->bytes = GDMA_TOTAL_PAGE_SIZE;
++		
++			buf->dev.type = SNDRV_DMA_TYPE_DEV;
++			buf->addr = i2s_mmap_phys_addr(rtd,dir);
++			
++			snd_pcm_set_runtime_buffer(substream, buf);
++		}
++
++		if(rtd->is_rx_mmap || rtd->is_tx_mmap)
++			rtd->bALSAMMAPEnable = 1;
++		
++
+ 
+         size = vma->vm_end-vma->vm_start;
+         printk("******* %s: size :%lx end:%lx start:%lx *******\n", __func__,size,vma->vm_end,vma->vm_start);
+@@ -251,22 +302,22 @@ static int mt76xx_pcm_prepare(struct snd
+ 	//printk("******* %s *******\n", __func__);
+ 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+ 		//printk("===== %s:%s:%d =====\n", __FILE__, __func__, __LINE__);
+-		mt76xx_pcm_allocate_dma_buffer(substream,SNDRV_PCM_STREAM_PLAYBACK);
++		//mt76xx_pcm_allocate_dma_buffer(substream,SNDRV_PCM_STREAM_PLAYBACK);
+ 		
+ 		if(! rtd->dmaStat[SNDRV_PCM_STREAM_PLAYBACK]){
+ 			i2s_page_prepare(rtd,STREAM_PLAYBACK);
+ 			tasklet_init(&i2s_tx_tasklet, i2s_tx_task, (u32)rtd);
+-			rtd->dmaStat[SNDRV_PCM_STREAM_PLAYBACK] = 1;
+-			gdma_unmask_handler(GDMA_I2S_TX0);
++			//rtd->dmaStat[SNDRV_PCM_STREAM_PLAYBACK] = 1;
++			//gdma_unmask_handler(GDMA_I2S_TX0);
+ 		}
+ 	} else {
+-		mt76xx_pcm_allocate_dma_buffer(substream,SNDRV_PCM_STREAM_CAPTURE);
++		//mt76xx_pcm_allocate_dma_buffer(substream,SNDRV_PCM_STREAM_CAPTURE);
+ 
+ 		if(! rtd->dmaStat[SNDRV_PCM_STREAM_CAPTURE]){
+ 			i2s_page_prepare(rtd,STREAM_CAPTURE); /* TX:enLabel=1; RX:enLabel=2 */
+ 			tasklet_init(&i2s_rx_tasklet, i2s_rx_task, (u32)rtd);
+-			rtd->dmaStat[SNDRV_PCM_STREAM_CAPTURE] = 1;
+-			gdma_unmask_handler(GDMA_I2S_RX0);
++		//	rtd->dmaStat[SNDRV_PCM_STREAM_CAPTURE] = 1;
++		//	gdma_unmask_handler(GDMA_I2S_RX0);
+ 		}
+ 	}
+ 
+@@ -311,6 +362,7 @@ static int mt76xx_pcm_hw_free(struct snd
+ 			rtd->dmaStat[SNDRV_PCM_STREAM_PLAYBACK] = 0;
+ 		}
+ 		mt76xx_pcm_free_dma_buffer(substream,substream->stream);
++		rtd->is_tx_mmap = 0;
+ 	}
+ 	else{
+ 		if(rtd->dmaStat[SNDRV_PCM_STREAM_CAPTURE]){
+@@ -324,6 +376,7 @@ static int mt76xx_pcm_hw_free(struct snd
+ 			rtd->dmaStat[SNDRV_PCM_STREAM_CAPTURE] = 0;
+ 		}
+ 		mt76xx_pcm_free_dma_buffer(substream,substream->stream);
++		rtd->is_rx_mmap = 0;
+ 	}
+ 	return 0;
+ }
+@@ -357,12 +410,12 @@ static int mt76xx_pcm_allocate_dma_buffe
+ 
+ 	//printk("******* %s *******\n", __func__);
+ 	if(!buf->area){
+-#if defined(CONFIG_I2S_MMAP)
+-		printk("\n############## MMAP ##############\n");
+-		buf->dev.type = SNDRV_DMA_TYPE_DEV;
+-#else
+-		buf->dev.type = SNDRV_DMA_TYPE_UNKNOWN;
+-#endif
++//#if defined(CONFIG_I2S_MMAP)
++//		printk("\n############## MMAP ##############\n");
++//		buf->dev.type = SNDRV_DMA_TYPE_DEV;
++//#else
++//		buf->dev.type = SNDRV_DMA_TYPE_UNKNOWN;
++//#endif
+ 		buf->dev.dev = NULL;
+ 		buf->private_data = NULL;
+ 		if(stream == SNDRV_PCM_STREAM_PLAYBACK)
+@@ -373,9 +426,18 @@ static int mt76xx_pcm_allocate_dma_buffe
+ 		if (!buf->area)
+ 			return -ENOMEM;
+ 		buf->bytes = GDMA_TOTAL_PAGE_SIZE;
+-#if defined(CONFIG_I2S_MMAP)
+-		buf->addr = i2s_mmap_phys_addr(rtd);
+-#endif
++//#if defined(CONFIG_I2S_MMAP)
++//		buf->addr = i2s_mmap_phys_addr(rtd);
++//#endif
++	if(rtd->is_tx_mmap || rtd->is_rx_mmap){
++			buf->dev.type = SNDRV_DMA_TYPE_DEV;
++			buf->addr = i2s_mmap_phys_addr(rtd,stream);
++		}
++		else{
++			buf->dev.type = SNDRV_DMA_TYPE_UNKNOWN;
++		}
++
++
+ 		snd_pcm_set_runtime_buffer(substream, buf);
+ 	} else{
+ 		//printk("Buffer have been allocated!\n");
+@@ -388,6 +450,7 @@ static int mt76xx_pcm_open(struct snd_pc
+ {
+ 	struct snd_pcm_runtime *runtime= substream->runtime;
+ 	struct snd_dma_buffer *buf = &substream->dma_buffer;
++	i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
+ 	int stream = substream->stream;
+ 	int ret = 0;
+ 
+@@ -399,6 +462,10 @@ static int mt76xx_pcm_open(struct snd_pc
+ 	if (ret < 0)
+ 		goto out;
+ 
++	ret = snd_pcm_hw_constraint_minmax(runtime,SNDRV_PCM_HW_PARAM_BUFFER_SIZE,runtime->hw.period_bytes_min*2,runtime->hw.period_bytes_min*2);
++	if (ret < 0)
++		goto out;
++
+ #if 1
+ 	if(stream == SNDRV_PCM_STREAM_PLAYBACK){
+ 		ret = mt76xx_pcm_allocate_dma_buffer(substream,
+Index: b/sound/soc/mtk/ralink_gdma.c
+===================================================================
+--- a/sound/soc/mtk/ralink_gdma.c	2017-10-04 12:33:34.977843031 +0800
++++ b/sound/soc/mtk/ralink_gdma.c	2017-10-04 14:03:20.197997382 +0800
+@@ -46,6 +46,7 @@
+ #include <linux/version.h>
+ #include <linux/module.h>
+ #include <linux/kernel.h>
++#include <linux/delay.h>
+ #include <linux/interrupt.h>
+ #include <linux/fs.h>
+ #if defined (CONFIG_MIPS)
+@@ -228,7 +229,7 @@ int GdmaReqQuickIns(uint32_t ChNum)
+ int _GdmaReqEntryIns(GdmaReqEntry *NewEntry)
+ {
+     uint32_t Data=0;
+-
++#if 0
+     GDMA_PRINT("== << GDMA Control Reg (Channel=%d) >> ===\n", NewEntry->ChNum);
+     GDMA_PRINT(" Channel Source Addr = %x \n", NewEntry->Src);
+     GDMA_PRINT(" Channel Dest Addr = %x \n", NewEntry->Dst);
+@@ -257,14 +258,15 @@ int _GdmaReqEntryIns(GdmaReqEntry *NewEn
+     GDMA_PRINT("Next Unmasked Channel=%d\n", NewEntry->NextUnMaskCh);
+     GDMA_PRINT("Channel Mask=%d\n", NewEntry->ChMask);
+     GDMA_PRINT("========================================\n");
+-
++#endif
++	
+     GDMA_WRITE_REG(GDMA_SRC_REG(NewEntry->ChNum), NewEntry->Src);
+-    GDMA_PRINT("SrcAddr: Write %0X to %X\n", \
+-	    NewEntry->Src, GDMA_SRC_REG(NewEntry->ChNum));
++//    GDMA_PRINT("SrcAddr: Write %0X to %X\n", \
++//	    NewEntry->Src, GDMA_SRC_REG(NewEntry->ChNum));
+ 
+     GDMA_WRITE_REG(GDMA_DST_REG(NewEntry->ChNum), NewEntry->Dst);
+-    GDMA_PRINT("DstAddr: Write %0X to %X\n", \
+-	    NewEntry->Dst, GDMA_DST_REG(NewEntry->ChNum));
++  //  GDMA_PRINT("DstAddr: Write %0X to %X\n", \
++//	    NewEntry->Dst, GDMA_DST_REG(NewEntry->ChNum));
+ 
+     Data |= ( (NewEntry->NextUnMaskCh) << NEXT_UNMASK_CH_OFFSET); 
+     Data |= ( NewEntry->ChMask << CH_MASK_OFFSET); 
+@@ -283,7 +285,7 @@ int _GdmaReqEntryIns(GdmaReqEntry *NewEn
+ #endif
+ 
+     GDMA_WRITE_REG(GDMA_CTRL_REG1(NewEntry->ChNum), Data);
+-    GDMA_PRINT("CTRL1: Write %08X to %8X\n", Data, GDMA_CTRL_REG1(NewEntry->ChNum));
++  //  GDMA_PRINT("CTRL1: Write %08X to %8X\n", Data, GDMA_CTRL_REG1(NewEntry->ChNum));
+ 
+     Data = ((NewEntry->TransCount) << TRANS_CNT_OFFSET); 
+ #if defined (CONFIG_RALINK_RT3052)
+@@ -306,7 +308,7 @@ int _GdmaReqEntryIns(GdmaReqEntry *NewEn
+     Data |= (0x01<<CH_EBL_OFFSET); 
+     GDMA_WRITE_REG(GDMA_CTRL_REG(NewEntry->ChNum), Data);
+     //GDMA_READ_REG(GDMA_CTRL_REG(NewEntry->ChNum));
+-    GDMA_PRINT("CTRL: Write %08X to %8X\n", Data, GDMA_CTRL_REG(NewEntry->ChNum));    
++    //GDMA_PRINT("CTRL: Write %08X to %8X\n", Data, GDMA_CTRL_REG(NewEntry->ChNum));    
+      //if there is no interrupt handler, this function will 
+     //return 1 until GDMA done.
+     if(NewEntry->DoneIntCallback==NULL) { 
