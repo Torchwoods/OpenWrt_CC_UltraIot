@@ -1,0 +1,101 @@
+--- a/tools/irexec.cpp
++++ b/tools/irexec.cpp
+@@ -26,10 +26,15 @@
+ #include <getopt.h>
+ #include <sys/types.h>
+ #include <sys/wait.h>
++#include <fcntl.h>
+ 
+ #include "lirc_client.h"
+ #include "lirc_log.h"
+ 
++#define LED_ROOT	"/sys/class/leds/%s/"
++#define LED_TRIGGER	LED_ROOT "trigger"
++#define LED_SHOT	LED_ROOT "shot"
++
+ static const logchannel_t logchannel = LOG_APP;
+ 
+ static const char* const USAGE =
+@@ -37,6 +42,7 @@
+ 	"\t-d --daemon\t\tRun in background\n"
+ 	"\t-D --loglevel=level\t'error', 'info', 'notice',... or 0..10\n"
+ 	"\t-n --name=progname\tUse this program name for lircrc matching\n"
++	"\t-l --led=led_name\tled blinking using sysfs one-shot LED Trigger\n"
+ 	"\t-h --help\t\tDisplay usage summary\n"
+ 	"\t-v --version\t\tDisplay version\n";
+ 
+@@ -45,6 +51,7 @@
+ 	{ "version",  no_argument,	 NULL, 'v' },
+ 	{ "daemon",   no_argument,	 NULL, 'd' },
+ 	{ "name",     required_argument, NULL, 'n' },
++	{ "led",      required_argument, NULL, 'l' },
+ 	{ "loglevel", required_argument, NULL, 'D' },
+ 	{ 0,          0,		 0,    0   }
+ };
+@@ -55,6 +62,9 @@
+ 
+ static char path[256] = {0};
+ 
++static char *led_name = NULL;
++static char pathl[255] = {};
++static int fd;
+ 
+ /** Run shell command line in isolated process using double fork(). */
+ static void run_command(const char* cmd)
+@@ -107,6 +117,11 @@
+ 			continue;
+ 		r = lirc_code2char(config, code, &c);
+ 		while (r == 0 && c != NULL) {
++			if (led_name) {
++				fd = open(pathl, O_WRONLY);
++				write(fd, "1", 1);
++				close(fd);
++			}
+ 			run_command(c);
+ 			r = lirc_code2char(config, code, &c);
+ 		}
+@@ -151,7 +166,7 @@
+ {
+ 	int c;
+ 
+-	while ((c = getopt_long(argc, argv, "D:hvdn:", options, NULL)) != -1) {
++	while ((c = getopt_long(argc, argv, "D:hvdn:l:", options, NULL)) != -1) {
+ 		switch (c) {
+ 		case 'h':
+ 			puts(USAGE);
+@@ -165,6 +180,9 @@
+ 		case 'n':
+ 			opt_progname = optarg;
+ 			break;
++		case 'l':
++			led_name = optarg;
++			break;
+ 		case 'D':
+ 			opt_loglevel = string2loglevel(optarg);
+ 			break;
+@@ -181,5 +199,25 @@
+ 		fprintf(stderr, "Bad debug level: %s\n", optarg);
+ 		return EXIT_FAILURE;
+ 	}
++	if (led_name) {
++		sprintf(pathl, LED_ROOT, led_name);
++		if (0 != access(pathl, F_OK)) {
++			if (ENOENT == errno) {
++				fprintf(stderr, "%s isn't in /sys/class/leds/\n", led_name);
++				exit(EXIT_FAILURE);
++			}
++		}
++
++		sprintf(pathl, LED_TRIGGER, led_name);
++		fd = open(pathl, O_WRONLY);
++		if (write(fd, "oneshot", 7) < 0){
++			fprintf(stderr, "One-shot LED Trigger isn't installed/accessible\n");
++			close(fd);
++			exit(EXIT_FAILURE);
++		}
++		close(fd);
++
++		sprintf(pathl, LED_SHOT, led_name);
++	}
+ 	return irexec(optind != argc ? argv[optind] : NULL);
+ }
