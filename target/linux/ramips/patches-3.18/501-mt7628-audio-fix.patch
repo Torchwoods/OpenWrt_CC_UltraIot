@@ -81,7 +81,7 @@ Index: b/sound/soc/mtk/i2s_ctrl.c
  		
  	/* Do memory allocate and dma sync */
 -	i2s_mmap_alloc(size);
-+	i2s_mmap_alloc(size,STREAM_PLAAYBACK);
++	i2s_mmap_alloc(size,STREAM_PLAYBACK);
  
  	i2s_mmap_remap(vma, size);
  
