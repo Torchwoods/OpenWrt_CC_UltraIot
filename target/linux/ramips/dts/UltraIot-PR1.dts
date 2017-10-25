@@ -47,6 +47,18 @@
 	palmbus@10000000 {
 	        i2c@900 {
                         status = "okay";
+			
+			ssd1306fb:ssd1306@3c{
+				compatible = "solomon,ssd1306fb-i2c";
+				ret = <0x3c>;
+				solomon,width = <128>;
+				solomon,hight = <64>;
+				solomon,page-offset = <0>;
+				solomon,com-invdir;
+
+			};			
+
+
                 };
 
  
