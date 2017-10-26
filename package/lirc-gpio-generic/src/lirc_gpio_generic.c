@@ -59,9 +59,9 @@
 /* module parameters */
 
 /* set the default GPIO input pin */
-static int gpio_in_pin = 10;
+static int gpio_in_pin = 19;
 /* set the default GPIO output pin */
-static int gpio_out_pin = 9;
+static int gpio_out_pin = 18;
 /* enable debugging messages */
 static bool debug;
 /* -1 = auto, 0 = active high, 1 = active low */
