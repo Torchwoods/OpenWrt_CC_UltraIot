@@ -124,7 +124,7 @@
 
 	sdhci@10130000 {
                 status = "okay";
-                mediatek,cd-low;
+                mediatek,cd-high;
         };
 
         ethernet@10100000 {
