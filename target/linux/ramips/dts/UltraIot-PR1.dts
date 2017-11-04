@@ -12,7 +12,8 @@
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x4000000>;
+		reg = <0x0 0x8000000>;
+		//reg = <0x0 0x4000000>;
 	};
 
 	pinctrl {
@@ -38,7 +39,7 @@
 		uart2_pins: uart2 {
 			uart2 {
 				ralink,group = "uart2";
-				ralink,function = "uart2";
+				ralink,function = "pwm";
 			};
 		};
 		
@@ -48,15 +49,16 @@
 	        i2c@900 {
                         status = "okay";
 			
-			ssd1306fb:ssd1306@3c{
-				compatible = "solomon,ssd1306fb-i2c";
-				ret = <0x3c>;
-				solomon,width = <128>;
-				solomon,hight = <64>;
-				solomon,page-offset = <0>;
-				solomon,com-invdir;
-
-			};			
+		//	ssd1306fb@3c{
+		//		compatible = "solomon,ssd1306fb-i2c";
+		//		reg = <0x3c>;
+		//		solomon,width = <128>;
+		//		solomon,height = <64>;
+		//		reset-gpios = <&gpio1 8 0>;
+		//		solomon,page-offset = <0>;
+		//		solomon,com-invdir;
+//
+//			};			
 
 
                 };
@@ -111,7 +113,8 @@
 
 				partition@50000 {
 					label = "firmware";
-					reg = <0x50000 0x7b0000>;
+					reg = <0x50000 0xfb0000>;
+					//reg = <0x50000 0x7b0000>;
 				};
 			};
 		};
