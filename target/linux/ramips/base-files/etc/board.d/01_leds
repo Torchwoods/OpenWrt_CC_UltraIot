@@ -8,7 +8,7 @@ set_usb_led() {
 }
 
 set_wifi_led() {
-	ucidef_set_led_netdev "wifi_led" "wifi" "$1" "wlan0"
+	ucidef_set_led_netdev "wifi_led" "wifi" "$1" "ra0"
 }
 
 
