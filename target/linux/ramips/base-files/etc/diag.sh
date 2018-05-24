@@ -203,6 +203,9 @@ get_status_led() {
 	wr8305rt)
 		status_led="wr8305rt:sys"
 		;;
+	ReSpeaker32m)
+		status_led="mediatek:green:system"
+		;;
 	UltraIot-PR1)
 		status_led="mediatek:green:system"
 		;;

@@ -1,0 +1,203 @@
+/dts-v1/;
+
+/include/ "mt7628an.dtsi"
+
+/ {
+	compatible = "mediatek,ReSpeaker32m", "mediatek,mt7628an-soc";
+	model = "ReSpeaker32M";
+	
+	chosen {
+                bootargs = "console=ttyS0,57600";
+        };
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+		//reg = <0x0 0x4000000>;
+	};
+
+	pinctrl {
+		state_default: pinctrl0 {
+			gpio {
+				ralink,group = "pwm0","pwm1","refclk","p0_led_an","p1_led_an","p3_led_an","p4_led_an","wled_an","wdt","p2_led_an","gpio" ;
+				ralink,function = "gpio";
+			};
+
+
+			spis {
+				ralink,group = "spis";
+				ralink,function = "pwm_uart2";
+			};
+			
+			i2s {
+                                ralink,group = "i2s";
+                                ralink,function = "i2s";
+                        };
+
+		};
+
+		uart2_pins: uart2 {
+			uart2 {
+				ralink,group = "uart2";
+				ralink,function = "uart2";
+			};
+		};
+		
+	};
+
+	palmbus@10000000 {
+	        i2c@900 {
+                        status = "okay";
+			
+		//	ssd1306fb@3c{
+		//		compatible = "solomon,ssd1306fb-i2c";
+		//		reg = <0x3c>;
+		//		solomon,width = <128>;
+		//		solomon,height = <64>;
+		//		reset-gpios = <&gpio1 8 0>;
+		//		solomon,page-offset = <0>;
+		//		solomon,com-invdir;
+//
+//			};			
+
+
+                };
+
+ 
+	       i2s@a00 {
+			status = "okey";
+
+		};
+
+                uart1@d00 {
+                        status = "okay";
+                };
+
+                uart2@e00 {
+                        status = "okay";
+                };
+
+//		pwm@5000 {
+//                        status = "okay";
+//                };
+		
+		spi@b00 {
+			status = "okay";
+
+			m25p80@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "en25q64";
+				reg = <0 0>;
+				linux,modalias = "w25q64", "w25q128","w25q256";
+				spi-max-frequency = <10000000>;
+				m25p,chunked-io = <32>;
+
+				partition@0 {
+					label = "u-boot";
+					reg = <0x0 0x30000>;
+					read-only;
+				};
+
+				partition@30000 {
+					label = "u-boot-env";
+					reg = <0x30000 0x10000>;
+					read-only;
+				};
+
+				factory: partition@40000 {
+					label = "factory";
+					reg = <0x40000 0x10000>;
+					read-only;
+				};
+
+				partition@50000 {
+					label = "firmware";
+					reg = <0x50000 0xfb0000>;
+					//reg = <0x50000 0x7b0000>;
+				};
+			};
+		};
+
+	};
+
+
+	sdhci@10130000 {
+                status = "okay";
+                mediatek,cd-high;
+        };
+
+        ethernet@10100000 {
+                mtd-mac-address = <&factory 0x28>;
+        };
+
+
+	gpio-leds {
+                compatible = "gpio-leds";
+                
+		system {
+                        label = "mediatek:green:system";
+                        gpios = <&gpio1 5 1>;
+                        default-state = "off";
+                };
+		
+                wifi {
+                        label = "mediatek:green:wifi";
+                        gpios = <&gpio1 7 1>;
+                        default-state = "off";
+                };
+
+                wan {
+                        label = "mediatek:green:wan";
+                        gpios = <&gpio1 11 1>;
+                        default-state = "off";
+                };
+
+		
+//                lan1 {
+//                        label = "mediatek:green:lan_1";
+//                        gpios = <&gpio1 10 1>;
+//                        default-state = "off";
+//                };
+
+//                lan2 {
+//                        label = "mediatek:green:lan_2";
+//                        gpios = <&gpio1 8 1>;
+//                        default-state = "off";
+//                };
+
+        };
+
+	gpio-keys-polled {
+                compatible = "gpio-keys-polled";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                poll-interval = <20>;
+
+                btn1 {
+                        label = "btn1";
+                        gpios = <&gpio1 6 0>;
+                        linux,code = <0x101>;
+                };
+
+                btn2 {
+                        label = "btn2";
+                        gpios = <&gpio1 9 0>;
+                        linux,code = <0x102>;
+                };
+		
+                btn3 {
+                        label = "btn3";
+                        gpios = <&gpio1 10 0>;
+                        linux,code = <0x103>;
+                };
+
+                reset {
+                        label = "reset";
+                        gpios = <&gpio1 12 0>;
+                        linux,code = <0x198>;
+                };
+
+        };	
+
+};

@@ -120,6 +120,7 @@ platform_check_image() {
 	wr6202 |\
 	wr8305rt |\
 	UltraIot-PR1 |\
+	ReSpeaker32m |\
 	wrtnode |\
 	wt1520 |\
 	wt3020 |\
