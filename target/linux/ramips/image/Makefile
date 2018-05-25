@@ -1012,7 +1012,7 @@ endef
 #
 
 Image/Build/Profile/MT7628=$(call BuildFirmware/Default8M/$(1),$(1),mt7628,MT7628)
-Image/Build/Profile/ReSpeaker32M=$(call BuildFirmware/Default16M/$(1),$(1),ReSpeaker32M,ReSpeaker32M)
+Image/Build/Profile/ReSpeaker32M=$(call BuildFirmware/Default16M/$(1),$(1),ReSpeaker32m,ReSpeaker32M)
 
 ifeq ($(SUBTARGET),mt7628)
 define Image/Build/Profile/Default

@@ -417,6 +417,7 @@ ramips_board_detect() {
 		;;
 	*"ReSpeaker32M")
 		name="ReSpeaker32m"
+		;;
 	*"ZTE Q7")
 		name="zte-q7"
 		;;

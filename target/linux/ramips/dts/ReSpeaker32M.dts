@@ -7,13 +7,14 @@
 	model = "ReSpeaker32M";
 	
 	chosen {
-                bootargs = "console=ttyS0,57600";
+                bootargs = "console=ttyS0,115200";
         };
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x8000000>;
-		//reg = <0x0 0x4000000>;
+		//reg = <0x0 0x10000000>; //256MB RAM
+		reg = <0x0 0x8000000>;  //128MB RAM
+		//reg = <0x0 0x4000000>;//64MB RAM
 	};
 
 	pinctrl {
@@ -113,8 +114,10 @@
 
 				partition@50000 {
 					label = "firmware";
-					reg = <0x50000 0xfb0000>;
-					//reg = <0x50000 0x7b0000>;
+					//reg = <0x50000 0x7b0000>; 	//8MB flash
+					reg = <0x50000 0xfb0000>;	// 16MB flash
+					//reg = <0x50000 0x1fb0000>;	//32MB flash
+					
 				};
 			};
 		};
@@ -160,11 +163,11 @@
 //                        default-state = "off";
 //                };
 
-//                lan2 {
-//                        label = "mediatek:green:lan_2";
-//                        gpios = <&gpio1 8 1>;
-//                        default-state = "off";
-//                };
+                lan2 {
+                        label = "mediatek:green:lan_2";
+                        gpios = <&gpio1 8 1>;
+                        default-state = "off";
+                };
 
         };
 
