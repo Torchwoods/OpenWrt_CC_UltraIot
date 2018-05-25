@@ -13,21 +13,21 @@ config timeserver ntp
 config button
         option button 'BTN_1'
         option action 'released'
-        option handler "/bin/led.sh 'mediatek:green:wifi' 'slow'"
+        option handler "/bin/ledblink 'mediatek:green:wifi' 'slow'"
         option min '0'
         option max '5'
 
 config button
         option button 'BTN_2'
         option action 'released'
-        option handler "/bin/led.sh 'mediatek:green:wifi' 'mid'"
+        option handler "/bin/ledblink 'mediatek:green:wifi' 'mid'"
         option min '0'
         option max '5'
 
 config button
         option button 'BTN_3'
         option action 'released'
-        option handler "/bin/led.sh 'mediatek:green:wifi' 'fast'"
+        option handler "/bin/ledblink 'mediatek:green:wifi' 'fast'"
         option min '0'
         option max '5'
 
