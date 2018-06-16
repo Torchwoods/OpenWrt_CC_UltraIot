@@ -1,0 +1,16 @@
+#!/bin/sh
+
+. /lib/functions/leds.sh
+
+status_led=$1
+
+if [ $2 == "fast" ]; then
+        status_led_blink_failsafe
+elif [ $2 == "slow" ]; then
+        status_led_blink_slow
+elif [ $2 == "mid" ];then
+        status_led_blink_fast
+else
+        echo "unknow args"
+fi
+
