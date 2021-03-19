@@ -1,6 +1,10 @@
 config system
-	option hostname	OpenWrt
-	option timezone	UTC
+	option hostname	YunYinIot
+	option timezone	CST-8
+	option conloglevel '5'
+    option cronloglevel '1'
+    option kconloglevel '1'
+    option zonename 'Asia/Shanghai'
 
 config timeserver ntp
 	list server	0.openwrt.pool.ntp.org
