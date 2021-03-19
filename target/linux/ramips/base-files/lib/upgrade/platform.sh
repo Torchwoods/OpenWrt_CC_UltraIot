@@ -120,6 +120,7 @@ platform_check_image() {
 	wr6202 |\
 	wr8305rt |\
 	UltraIot-PR1 |\
+	YunYinIot |\
 	wrtnode |\
 	wt1520 |\
 	wt3020 |\

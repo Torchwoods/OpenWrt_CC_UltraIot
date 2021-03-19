@@ -203,6 +203,9 @@ get_status_led() {
 	wr8305rt)
 		status_led="wr8305rt:sys"
 		;;
+	YunYinIot)
+		status_led="sys"
+		;;
 	UltraIot-PR1)
 		status_led="mediatek:green:system"
 		;;

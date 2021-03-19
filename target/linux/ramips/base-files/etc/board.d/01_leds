@@ -247,6 +247,12 @@ case $board in
 		set_usb_led "wr8305rt:usb"
 		set_wifi_led "wr8305rt:wifi"
 		;;
+	YunYinIot)
+		ucidef_set_led_default "power" "power" "sys" "0"
+		ucidef_set_led_netdev "lan" "lan" "lan" "eth0.1"
+		ucidef_set_led_netdev "wan" "wan" "wan" "eth0.2"
+		set_wifi_led "wifi"
+		;;
 	UltraIot-PR1)
 		ucidef_set_led_default "power" "power" "mediatek:green:system" "1"
 		ucidef_set_led_netdev "WAN" "WAN" "mediatek:green:wan" "eth0.2"

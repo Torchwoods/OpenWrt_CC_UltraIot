@@ -415,6 +415,9 @@ ramips_board_detect() {
 	*"UltraIot-PR1")
 		name="UltraIot-PR1"
 		;;
+	*"YunYinIot")
+		name="YunYinIot"
+		;;
 	*"ZTE Q7")
 		name="zte-q7"
 		;;
