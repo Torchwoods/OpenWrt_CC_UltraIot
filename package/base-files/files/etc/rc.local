@@ -1,4 +1,15 @@
 # Put your custom commands here that should be executed once
 # the system init finished. By default this file does nothing.
-/bin/oled /dev/i2c-0
+
+sleep 10
+/etc/init.d/dropbear start
+/etc/init.d/rtty restart
+
+# 4G PRESET
+echo 1 > /sys/class/gpio/export
+if [ -e /sys/class/gpio/gpio1 ];then
+	echo "out" > /sys/class/gpio/gpio1/direction
+	echo 1 > /sys/class/gpio/gpio1/value
+fi
+
 exit 0
