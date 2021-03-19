@@ -60,10 +60,25 @@ EOF
 		;;
 	wan) uci -q batch <<EOF
 set network.$1.proto='dhcp'
+delete network.wwan
+set network.wwan='interface'
+set network.wwan.ifname='apcli0'
+set network.wwan.proto='dhcp'
 delete network.wan6
 set network.wan6='interface'
 set network.wan6.ifname='$ifname'
 set network.wan6.proto='dhcpv6'
+EOF
+		;;
+		ppp) uci -q batch <<EOF
+set network.ppp='interface'
+set network.ppp.ifname='$ifname'
+set network.ppp.proto='3g'
+set network.ppp.apn='cmnet'
+set network.ppp.service='umts'
+set network.ppp.dialnumber='*99#'
+set network.ppp.device='/dev/ttyUSB2'
+set network.ppp.auto='0'
 EOF
 		;;
 	esac
@@ -142,6 +157,7 @@ EOF
 		uci -q batch <<EOF
 set system.$cfg.trigger='netdev'
 set system.$cfg.mode='link tx rx'
+set system.$cfg.default='1'
 EOF
 	;;
 

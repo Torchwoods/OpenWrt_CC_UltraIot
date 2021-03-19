@@ -283,3 +283,24 @@ set network.@switch_port[-1].port='$port'
 EOF
 }
 
+ucidef_set_interface_ppp0() {
+       local ifname=$1       
+       uci batch <<EOF
+set network.ppp='interface'
+set network.ppp.ifname='$ifname'
+set network.ppp.proto='3g'
+set network.ppp.auto='1'
+set network.ppp.apn='cmnet'
+set network.ppp.service='umts'
+set network.ppp.dialnumber='*99#'
+set network.ppp.device='/dev/ttyUSB2'
+EOF
+}
+
+
+ucidef_set_interfaces_3g() {
+	       local ppp0_ifname=$1	       
+	       ucidef_set_interface_ppp0 "$ppp0_ifname"
+}
+
+

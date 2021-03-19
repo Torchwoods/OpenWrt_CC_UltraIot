@@ -62,6 +62,14 @@ ucidef_set_interfaces_lan_wan() {
 	json_select ..
 }
 
+ucidef_set_interfaces_3g()
+{
+	local ppp_if=$1
+	json_select_object network
+	_ucidef_set_interface ppp $ppp_if
+	json_select ..
+}
+
 ucidef_add_switch() {
 	local name=$1
 	local reset=$2
