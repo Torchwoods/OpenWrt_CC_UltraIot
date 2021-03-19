@@ -1,0 +1,103 @@
+#!/bin/sh
+
+argv=$1
+
+echo "$argv"
+
+#INPUT 1 GPIO3
+#INPUT 2 GPIO5 
+#RELAY 1 GPIO4
+#RELAY 2 GPIO11
+
+input_node()
+{
+	echo "输入干接点测试"
+	if [ ! -d /sys/class/gpio/gpio3 ];then
+		echo 3 > /sys/class/gpio/export
+		echo "in" > /sys/class/gpio/gpio3/direction
+	fi
+	
+	if [ ! -d /sys/class/gpio/gpio5 ];then
+		echo 5 > /sys/class/gpio/export
+		echo "in" > /sys/class/gpio/gpio5/direction
+	fi
+	
+	while true 
+	do
+		if [ -d /sys/class/gpio/gpio3 ];then
+			value=`cat /sys/class/gpio/gpio3/value`
+			echo "INPUT 1 Value: $value"
+		fi
+		
+		if [ -d /sys/class/gpio/gpio5 ];then
+			value=`cat /sys/class/gpio/gpio5/value`
+			echo "INPUT 2 Value: $value"
+		fi
+		sleep 5
+	done
+}
+
+
+
+output_node()
+{
+	value=0
+	echo "输出干接点测试"
+	
+	if [ ! -d /sys/class/gpio/gpio4 ];then
+		echo 4 > /sys/class/gpio/export
+		echo "out" > /sys/class/gpio/gpio4/direction
+	fi
+	
+	if [ ! -d /sys/class/gpio/gpio11 ];then
+		echo 11 > /sys/class/gpio/export
+		echo "out" > /sys/class/gpio/gpio11/direction
+	fi
+	
+	while true 
+	do
+		if [ -d /sys/class/gpio/gpio4 ];then
+			echo $value > /sys/class/gpio/gpio4/value
+		fi
+		
+		if [ -d /sys/class/gpio/gpio11 ];then
+			echo $value > /sys/class/gpio/gpio11/value
+		fi
+		echo "value : $value"
+		if [ $value -eq 0 ];then
+			value=1
+		else
+			value=0
+		fi
+		
+		sleep 5
+	done
+}
+
+led_node()
+{
+	echo "指示灯测试"
+	
+}
+
+case "$argv" in
+"-h") 
+	echo "帮助说明"
+	echo "  -h 帮助"
+	echo "  -i 输入干接点测试"
+	echo "  -o 输出干接点测试"
+	echo "  -l 指示灯测试"
+;;
+"-i") 
+	input_node
+;;
+"-o") 
+	output_node
+;;
+"-l")
+	led_node
+;;
+esac
+
+
+
